@@ -12,12 +12,13 @@ options(mc.cores = parallel::detectCores())
 
 # Plasmid loss model ####
 #run it for each of the experiments ####
-data.conj <- readxl::read_xlsx("./data/Stability_Egil_data.xlsx", sheet = "For_R")
-data.growth.rates <- readxl::read_xlsx("./data/Stability_Egil_data.xlsx", sheet = "Growth_rates_for_R")
+data.conj <- readxl::read_xlsx("../data/Stability_Egil_data.xlsx", sheet = "For_R")
+data.growth.rates <- readxl::read_xlsx("../data/Stability_Egil_data.xlsx", sheet = "Growth_rates_for_R")
 data.conj[data.conj$Time == 0,] <- data.conj%>%filter(Time == 0)%>%mutate(Nax = Nax / 100,
                                        CFX = CFX / 100)#at time 0 a different solution was used
+
 # Stan model code (saved as a separate file, e.g., "model.stan")
-stan_file <- "src/ODE_plasmid_v2.stan"
+stan_file <- "./src/ODE_plasmid_v2.stan"
 
 
 
