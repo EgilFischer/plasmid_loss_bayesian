@@ -29,7 +29,7 @@ data_conjugation[data_conjugation$Time == 0, ] <- data_conjugation %>%
 
 
 # function to create a data input file for stan
-creat_stan_data <- function(strain, donor, data_growth_rates, data_conjugation) {
+create_stan_data <- function(strain, donor, data_growth_rates, data_conjugation) {
   #get the growth rates for this strain and donor
   #without plasmid
   psiR <- c(data_growth_rates %>%
@@ -45,11 +45,11 @@ creat_stan_data <- function(strain, donor, data_growth_rates, data_conjugation) 
   # Define data from conjugation experiment wiht donor and strain
   use_data <- data_conjugation %>%
     filter(Donor == donor & Strain_ID == strain);
-  time_points <- 3 # Number of time points
-  R <- 3 # Number of replicates
+  R <- length(unique(use_data$Replicate)) # Number of replicates
   time <- sort(unique(use_data$Time)) # Time points
+  time_points <- length(time) # Number of time points
   
-  #proportion of 
+    #proportion of 
   p_obs <- matrix(
     use_data$CFX / use_data$Nax,
     nrow = R, byrow = FALSE
@@ -74,10 +74,38 @@ creat_stan_data <- function(strain, donor, data_growth_rates, data_conjugation) 
   )
 }
 
+#check stan_data
+check_stan_data <- function(stan_data){
+  #set an error message
+  error_message = NULL;
+  #check length of ts = T
+  if(stan_data$T != length(stan_data$ts)){
+    error_message = "\n ts does not have length T; \n ";
+  }
+  #check dimensions p_obs
+  if(min(dim(stan_data$p_obs)==c(stan_data$R,stan_data$T))==0)
+  {
+    error_message = paste(error_message, "dim(p_obs) is not", stan_data$T, "x", stan_data$R ,"; \n")
+  }
+  #check dimensions N
+  if(min(dim(stan_data$N)==c(stan_data$R,stan_data$T))==0)
+  {
+    error_message = paste(error_message, "dim(N) is not", stan_data$T, "x", stan_data$R ,";")
+  }
+  if(!is.null(error_message)) stop(error_message)
+}
+
 #create object for Stan 
-stan_data <- creat_stan_data(strain = "MH1",donor = "1D", 
+stan_data <- create_stan_data(strain = "MH1",donor = "1D", 
                              data_growth_rates = data_growth_rates, 
                              data_conjugation = data_conjugation)
+
+#to be changed but psi does not fit wiht N so change
+stan_data$psiT<-2.7*stan_data$psiT/stan_data$psiR; 
+stan_data$psiT<-2.7;
+
+#check data
+check_stan_data(stan_data)
 
 # Stan model code (saved as a separate file, e.g., "model.stan")
 stan_file <- "./src/ODE_plasmid_v2.stan"
@@ -89,9 +117,9 @@ stan_model <- stan_model(file = stan_file)
 fit <- sampling(
   stan_model,
   data = stan_data,
-  iter = 1, # Number of iterations
-  chains = 1, # Number of chains
-  warmup = 0, # Number of warmup iterations
+  iter = 5, # Number of iterations
+  chains = 2, # Number of chains
+  warmup = 1, # Number of warmup iterations
   thin = 1, # Thinning interval
   init = function() {
     list(
@@ -99,11 +127,11 @@ fit <- sampling(
       log10_gamma = runif(1, -15, -5)
     )
   }, # force initial values of parameters
-  algorithm = "Fixed_param",
+ # algorithm = "Fixed_param",
   seed = 123 # Random seed for reproducibility
 )
 
-# functio to obtain the simulated data
+# function to obtain the simulated data
 print_sim_data <- function(sim, var_names) {
   for (name in var_names) {
     print(paste(name, ":", sim@sim$samples[[1]][name]))
@@ -137,18 +165,18 @@ predicted_mean <- apply(y_pred, 2, mean)
 predicted_sd <- apply(y_pred, 2, sd)
 
 # Plot observed vs predicted
-df <- data.frame(
-  Time = rep(time, each = R),
+df <- with(stan_data, {data.frame(
+  Time = rep(ts, each =R),
   Observed = as.vector(p_obs),
-  Predicted = rep(predicted_mean, each = R)
-)
+  Predicted = rep(predicted_mean, each =R)
+)})
 
-df.N <- data.frame(
-  Time = rep(time, each = R),
+df.N<- with(stan_data, { data.frame(
+  Time = rep(ts, each = R),
   Observed = as.vector(N),
   Predicted = rep(apply(N_pred, 2, mean), each = R)
 )
-
+})
 
 ggplot(df, aes(x = Time)) +
   geom_point(aes(y = Observed), color = "blue", size = 2) +
