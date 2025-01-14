@@ -2,6 +2,7 @@
 /data/temp
 /data/processed
 /data/raw
+/data
 
 # History files
 .Rhistory
