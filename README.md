@@ -1,15 +1,19 @@
-# Plasmid loss and conjugation estimation
+# Plasmid loss and conjugation estimation with Bayesian methods
 
-This project template is a demonstration for the RepCo workshop.
-
-## Usage
-
-Click "Use this template" at the top of this page to create a new repository with the same folder structure.
+This project contains files to estimate the loss of plasmids from bacterial population is conjection with uptake by conjugation. Two main parameters can be estimated "\rho" = loss parameter and "\gamma" = conjugation parameter. 
 
 ## Installation
 Install Rstan: https://cran.r-project.org/web/packages/rstan/index.html
 
 More information about Stan: https://mc-stan.org
+
+R-libraries:
+- rstan
+- rstanarm
+- ggplot2
+- deSolve
+- tidyverse
+- easyABC
 
 ## Project Structure
 
@@ -41,7 +45,7 @@ The project structure distinguishes three kinds of folders:
 ```
 
 ## Add a citation file
-Create a citation file for your repository using [cffinit](https://citation-file-format.github.io/cff-initializer-javascript/#/)
+Citation for this repository  [CITATION](https://github.com/EgilFischer/plasmid_loss_bayesian/blob/main/CITATION.cff)
 
 ## License
 
