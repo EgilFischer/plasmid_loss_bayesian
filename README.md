@@ -15,6 +15,10 @@ R-libraries:
 - tidyverse
 - easyABC
 
+### Dependencies
+
+Link to [dependencies](/renv.lock)
+
 ## Project Structure
 
 The project structure distinguishes three kinds of folders:
@@ -45,7 +49,7 @@ The project structure distinguishes three kinds of folders:
 ```
 
 ## Add a citation file
-Citation for this repository  [CITATION](https://github.com/EgilFischer/plasmid_loss_bayesian/blob/main/CITATION.cff)
+Citation for this repository  [CITATION](/CITATION.cff)
 
 ## License
 

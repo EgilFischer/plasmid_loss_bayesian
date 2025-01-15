@@ -167,9 +167,9 @@ stan_model <- stan_model(file = stan_file)
 fit <- sampling(
   stan_model,
   data = stan_data,
-  iter = 1000, # Number of iterations
+  iter = 10, # Number of iterations
   chains = 2, # Number of chains
-  warmup = 500, # Number of warmup iterations
+  warmup = 5, # Number of warmup iterations
   thin = 1, # Thinning interval
   init = function() {
     list(

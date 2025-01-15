@@ -29,32 +29,28 @@ data {
 
 // parameters to be estimated
 parameters {
- // real<lower =0, upper = 1> rho;                       // Parameter rho
+  real<lower =0, upper = 1> rho;                       // Parameter rho
   real<upper = 0> log10_gamma;  // Log-transformed gamma
   
 }
 
 // transformed parameters
 transformed parameters {
-  real gamma =pow(10,-7) ;//pow(10, log10_gamma); // Back-transform log10_gamma to gamma
-  real rho = 0.1;
-  array[T] real y_sim;// =[0.1,.1,.1]';                 // Predicted values for the equation of interest
+  real gamma =pow(10, log10_gamma) ;//pow(10, log10_gamma); // Back-transform log10_gamma to gamma
+  //real rho = 0.1;
+  array[T] real y_sim;               // Predicted values for the equation of interest
   matrix[R, T] sigma;               // Standard deviations for each replicate and time
   vector[2] y0;
-  y0 = [.9,437037]';
+  y0 = [p0,N0]';                // hard coding should be input parameters
   
  array[T] vector[2] ode_solution = ode_rk45(ode_system, y0, -10^-7, ts,rho, gamma, psiT, psiR);
   y_sim = ode_solution[,1];
-  // array[T]vector[2] ode_solution = ode_rk45(ode_system, y0, -10^7, ts,  rho, gamma, psiT, psiR);
-  // // Solve the ODE system
-  //     for (t in 1:T) {
-  //      y_sim[t] = ode_solution[t][1]; // Extract the specific ODE equation of interest (e.g., state[1])
-  //    }
+
    
   // Compute standard deviations for each replicate and time point
      for (r in 1:R) {
        for (t in 1:T) {
-         sigma[r, t] = 0.25 /3;//sqrt(y_sim[t] * (1 - y_sim[t]) / R);
+         sigma[r, t] = sqrt(y_sim[t] * (1 - y_sim[t]) / R);
        }
      }
 
@@ -63,7 +59,7 @@ transformed parameters {
 //model to be fitted
 model {
   // Priors
-  // rho ~ normal(0, 1);                      // Example prior for rho
+   rho ~ uniform(0, 1);                      // Example prior for rho
    log10_gamma ~ uniform(-15, -5); // Prior for log10_gamma
   
   // 
