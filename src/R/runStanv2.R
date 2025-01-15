@@ -127,10 +127,10 @@ print_sim_data <- function(sim, var_names) {
 }
 
 # load data ####
-data_conjugation <- readxl::read_xlsx("./data/Raw/Stability_Egil_data.xlsx",
+data_conjugation <- readxl::read_xlsx("./data/Stability_Egil_data.xlsx",
   sheet = "For_R"
 )
-data_growth_rates <- readxl::read_xlsx("./data/Raw/Stability_Egil_data.xlsx",
+data_growth_rates <- readxl::read_xlsx("./data/Stability_Egil_data.xlsx",
   sheet = "Growth_rates_for_R"
 )
 
@@ -160,20 +160,20 @@ check_stan_data(stan_data)
 # Stan model code (saved as a separate file, e.g., "model.stan")
 stan_file <- "./src/Stan/ODE_plasmid_v2.stan"
 
-# Compile the Stan model
+# Compile the Stan model ~do not care about message : "hash mismatch so recompiling; make sure Stan code ends with a blank line"
 stan_model <- stan_model(file = stan_file)
 
 # Fit the model - currently it just simulates data as there is some bug in the estimation procedure.
 fit <- sampling(
   stan_model,
   data = stan_data,
-  iter = 10, # Number of iterations
+  iter = 1000, # Number of iterations
   chains = 2, # Number of chains
-  warmup = 5, # Number of warmup iterations
+  warmup = 50, # Number of warmup iterations
   thin = 1, # Thinning interval
   init = function() {
     list(
-      rho = runif(1, 0, .1),
+      rho = runif(1, 0, 1),
       log10_gamma = runif(1, -15, -5)
     )
   }, # force initial values of parameters
@@ -201,12 +201,17 @@ stan_hist(fit)
 
 stan_ess(fit)
 
+pairs(fit,pars = c("rho" , 
+                   "log10_gamma", 
+                   "gamma"))
+
 # extract posterior predictive distribution
 y_pred <- rstan::extract(fit, "y_pred")$y_pred
 N_pred <- rstan::extract(fit, "N_pred")$N_pred
 
 # Summarize predicted values
 predicted_mean <- apply(y_pred, 2, mean)
+
 predicted_sd <- apply(y_pred, 2, sd)
 
 # Plottable data for observed vs predicted

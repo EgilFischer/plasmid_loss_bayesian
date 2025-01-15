@@ -36,8 +36,7 @@ parameters {
 
 // transformed parameters
 transformed parameters {
-  real gamma =pow(10, log10_gamma) ;//pow(10, log10_gamma); // Back-transform log10_gamma to gamma
-  //real rho = 0.1;
+  real gamma =pow(10, log10_gamma) ; // Back-transform log10_gamma to gamma
   array[T] real y_sim;               // Predicted values for the equation of interest
   matrix[R, T] sigma;               // Standard deviations for each replicate and time
   vector[2] y0;
@@ -60,7 +59,7 @@ transformed parameters {
 model {
   // Priors
    rho ~ uniform(0, 1);                      // Example prior for rho
-   log10_gamma ~ uniform(-15, -5); // Prior for log10_gamma
+   log10_gamma ~ uniform(-15, -6); // Prior for log10_gamma
   
   // 
   // Likelihood
