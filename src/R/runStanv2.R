@@ -20,16 +20,26 @@ create_stan_data <- function(strain, donor, data_growth_rates, data_conjugation)
   #' @param donor name of plasmid donor to extract data for (string)
   #' @param data_growth_rate data,frame containing bacterial growth rates
   #' @param data_conjugation data.frame containing conjugation data CFX and Nax columns
-  #' @return stan_data list with inputs for Stan model:/b
-    #' T: number of time points /b
-    #' R: number of replicates /b
+  #' @return stan_data list with inputs for Stan model:
+    #'  
+    #' T: number of time points
+    #' 
+    #' R: number of replicates
+    #' 
     #' ts: time points
+    #' 
     #' p_obs: observed proportion with plasmid
+    #' 
     #' N: observed population size
+    #' 
     #' p0: observed mean initial proportion with plasmid
+    #' 
     #' N0:  observed mean initial population size
+    #' 
     #' psiT: input growth rate with plasmid
+    #' 
     #' psiR: input growth rate without plasmid  
+    #' 
   
   #get the growth rates for the specified strain and donor
   #without plasmid
@@ -81,8 +91,9 @@ create_stan_data <- function(strain, donor, data_growth_rates, data_conjugation)
 check_stan_data <- function(stan_data){
   #' @title Data dimension check stan data
   #' @description
-    #' Checks the dimension of observed data
+    #' Checks the dimension of observed data. It willt throw an error if the dimensions are incorrect 
   #' @param stan_data is a list produced by create_stan_data function
+  #' @seealso create_stan_data
     
   #set an error message
   error_message = NULL;
@@ -100,9 +111,20 @@ check_stan_data <- function(stan_data){
   {
     error_message = paste(error_message, "dim(N) is not", stan_data$T, "x", stan_data$R ,";")
   }
+  
+  #the error message is build up during each step. If no errors are found it will still be NULL otherwise it throws an error.
   if(!is.null(error_message)) stop(error_message)
 }
 
+# function to obtain the simulated data
+print_sim_data <- function(sim, var_names) {
+  #' @title Print data simulated by Stan model
+  #' @param sim output of Stan fit function
+  #' @param var_names names to get output from  
+  for (name in var_names) {
+    print(paste(name, ":", sim@sim$samples[[1]][name]))
+  }
+}
 
 # load data ####
 data_conjugation <- readxl::read_xlsx("./data/Raw/Stability_Egil_data.xlsx",
@@ -128,7 +150,7 @@ stan_data <- create_stan_data(strain = "MH1",donor = "1D",
                              data_growth_rates = data_growth_rates, 
                              data_conjugation = data_conjugation)
 
-#to be changed after discussion with empiricist but psi does not fit with N so change
+#TO DO: to be changed after discussion with empiricist but psi does not fit with N so change
 stan_data$psiT<-2.7*stan_data$psiT/stan_data$psiR; 
 stan_data$psiT<-2.7;
 
@@ -145,9 +167,9 @@ stan_model <- stan_model(file = stan_file)
 fit <- sampling(
   stan_model,
   data = stan_data,
-  iter = 5, # Number of iterations
+  iter = 1000, # Number of iterations
   chains = 2, # Number of chains
-  warmup = 1, # Number of warmup iterations
+  warmup = 500, # Number of warmup iterations
   thin = 1, # Thinning interval
   init = function() {
     list(
@@ -159,12 +181,7 @@ fit <- sampling(
   seed = 123 # Random seed for reproducibility
 )
 
-# function to obtain the simulated data
-print_sim_data <- function(sim, var_names) {
-  for (name in var_names) {
-    print(paste(name, ":", sim@sim$samples[[1]][name]))
-  }
-}
+
 
 
 # print output of simulated data for y = proportion and N is total population size
@@ -175,7 +192,7 @@ print_sim_data(fit, fit@sim$fnames_oi)
 
 
 
-
+# model diagnostics
 stan_diag(fit)
 
 stan_trace(fit)
@@ -184,7 +201,7 @@ stan_hist(fit)
 
 stan_ess(fit)
 
-# Plot posterior predictive distribution
+# extract posterior predictive distribution
 y_pred <- rstan::extract(fit, "y_pred")$y_pred
 N_pred <- rstan::extract(fit, "N_pred")$N_pred
 
@@ -192,7 +209,7 @@ N_pred <- rstan::extract(fit, "N_pred")$N_pred
 predicted_mean <- apply(y_pred, 2, mean)
 predicted_sd <- apply(y_pred, 2, sd)
 
-# Plot observed vs predicted
+# Plottable data for observed vs predicted
 df <- with(stan_data, {data.frame(
   Time = rep(ts, each =R),
   Observed = as.vector(p_obs),
@@ -206,6 +223,8 @@ df.N<- with(stan_data, { data.frame(
 )
 })
 
+
+#plots ####
 ggplot(df, aes(x = Time)) +
   geom_point(aes(y = Observed), color = "blue", size = 2) +
   geom_line(aes(y = Predicted), color = "red", size = 1) +
@@ -228,7 +247,7 @@ ggplot(df.N, aes(x = Time)) +
   )
 
 
-
+# In this section solve the ODE's without Stan ####
 
 # Define the coupled differential equations
 dp_dn_dt <- function(time, state, parameters) {
@@ -247,16 +266,16 @@ time_points <- seq(0, 2, length.out = 100) # Example time points
 
 # Parameters
 parameters <- list(
-  psiT = unlist(psiT), # Example psiT
-  psiR = unlist(psiR), # Example psiR
+  psiT = unlist(stan_data$psiT), # Example psiT
+  psiR = unlist(stan_data$psiR), # Example psiR
   rho = summary(fit)$summary["rho", 1], # Example rho
-  gamma = exp(summary(fit)$summary["gamma", 1]) # Example gamma
+  gamma = summary(fit)$summary["gamma", 1] # Example gamma
 )
 
 # Initial conditions
 initial_state <- c(
-  p = mean(p_obs[, 1]), # summary(fit)$summary["y0[1]",1], # Initial value of p
-  N = N0 # Initial value of N
+  p = stan_data$p0,  # Initial value of p
+  N = stan_data$N0  # Initial value of N
 )
 
 # Solve the coupled ODEs
