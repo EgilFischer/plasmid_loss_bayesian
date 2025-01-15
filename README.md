@@ -3,19 +3,25 @@
 This project contains files to estimate the loss of plasmids from bacterial population is conjection with uptake by conjugation. Two main parameters can be estimated "\rho" = loss parameter and "\gamma" = conjugation parameter. 
 
 ## Installation
-Install Rstan: https://cran.r-project.org/web/packages/rstan/index.html
+The project is written in R and Stan. 
+ 
+The version of R  [4.4.1]
 
 More information about Stan: https://mc-stan.org
 
-R-libraries:
-- rstan
-- rstanarm
-- ggplot2
-- deSolve
-- tidyverse
-- easyABC
+Install Rstan: https://cran.r-project.org/web/packages/rstan/index.html
 
 ### Dependencies
+
+- deSolve          [* -> 1.40]
+- EasyABC          [* -> 1.5.2]
+- ggplot2          [* -> 3.5.1]
+- MASS             [* -> 7.3-60.2]
+- Rcpp             [* -> 1.0.12]
+- rstan            [* -> 2.32.6]
+- rstanarm         [* -> 2.32.1]
+- rstantools       [* -> 2.4.0]
+
 
 Link to [dependencies](/renv.lock)
 
