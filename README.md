@@ -1,14 +1,19 @@
-# Plasmid loss and conjugation estimation
+# Plasmid loss and conjugation estimation with Bayesian methods
 
-This project template is a demonstration for the RepCo workshop.
-
-## Usage
-
-Click "Use this template" at the top of this page to create a new repository with the same folder structure.
+This project contains files to estimate the loss of plasmids from bacterial population is conjection with uptake by conjugation. Two main parameters can be estimated "\rho" = loss parameter and "\gamma" = conjugation parameter. 
 
 ## Installation
 Install Rstan: https://cran.r-project.org/web/packages/rstan/index.html
+
 More information about Stan: https://mc-stan.org
+
+R-libraries:
+- rstan
+- rstanarm
+- ggplot2
+- deSolve
+- tidyverse
+- easyABC
 
 ## Project Structure
 
@@ -25,22 +30,22 @@ The project structure distinguishes three kinds of folders:
 ├── LICENSE
 ├── README.md
 ├── requirements.txt
-├── data               <- All project data, ignored by git
-│   ├── processed      <- The final, canonical data sets for modeling. (PG)
-│   ├── raw            <- The original, immutable data dump. (RO)
-│   └── temp           <- Intermediate data that has been transformed. (PG)
+├── data               <- All project data, ignored by git (RO)
+|
 ├── docs               <- Documentation notebook for users (HW)
 │   ├── manuscript     <- Manuscript source, e.g., LaTeX, Markdown, etc. (HW)
 │   └── reports        <- Other project reports and notebooks (e.g. Jupyter, .Rmd) (HW)
 ├── results
 │   ├── figures        <- Figures for the manuscript or reports (PG)
 │   └── output         <- Other output for the manuscript or reports (PG)
-└── R                  <- Source code for this project (HW)
+└── src                  <- Source code for this project (HW)
+    ├── R              <- R-codes (HW)
+    └── Stan         <- Stan code (HW)
 
 ```
 
 ## Add a citation file
-Create a citation file for your repository using [cffinit](https://citation-file-format.github.io/cff-initializer-javascript/#/)
+Citation for this repository  [CITATION](https://github.com/EgilFischer/plasmid_loss_bayesian/blob/main/CITATION.cff)
 
 ## License
 
