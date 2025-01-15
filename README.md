@@ -1,10 +1,14 @@
-# My Project
+# Plasmid loss and conjugation estimation
 
 This project template is a demonstration for the RepCo workshop.
 
 ## Usage
 
 Click "Use this template" at the top of this page to create a new repository with the same folder structure.
+
+## Installation
+Install Rstan: https://cran.r-project.org/web/packages/rstan/index.html
+More information about Stan: https://mc-stan.org
 
 ## Project Structure
 
