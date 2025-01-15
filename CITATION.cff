@@ -1,12 +1,23 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
-title: "My Research Software"
+title: Plasmid loss and conjugation estimation
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
 authors:
-  - family-names: Druskat
-    given-names: Stephan
-    orcid: https://orcid.org/1234-5678-9101-1121
-version: 2.0.4
-date-released: 2021-08-11
-doi: 10.5281/zenodo.1234
-license: Apache-2.0
-repository-code: "https://github.com/citation-file-format/my-research-software"
+  - given-names: 'Egil A.J. '
+    family-names: Fischer
+    email: e.a.j.fischer@uu.nl
+    name-particle: Egil
+    orcid: 'https://orcid.org/0000-0002-0599-701X'
+abstract: >-
+  Estimate the plasmid loss and conjugation from growth 
+  rates and conjugation experiments using Bayesian methods. 
+keywords:
+  - conjugation
+  - plasmid
+  - ordinary differential equation
+license: MIT
