@@ -2,6 +2,9 @@
 
 This project contains files to estimate the loss of plasmids from bacterial population is conjection with uptake by conjugation. Two main parameters can be estimated "\rho" = loss parameter and "\gamma" = conjugation parameter. 
 
+## Usage 
+The main document to use for Bayesian inference is runStanv2.R which will call the model in Stan : ODE_plasmid_v2.stan. This latter includes the code with the model and prior distributions. This model is thus run from runStanv2.R.
+The script in ABC_modelfit.R fits the same model as in the stan file but then with an ABC-SMC approach. 
 ## Installation
 The project is written in R and Stan. 
  
