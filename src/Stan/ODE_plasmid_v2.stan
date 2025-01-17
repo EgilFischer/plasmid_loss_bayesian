@@ -30,7 +30,7 @@ data {
 // parameters to be estimated
 parameters {
   real<lower =0, upper = 1> rho;                       // Parameter rho
-  real<upper = 0> log10_gamma;  // Log-transformed gamma
+  real log10_gamma;  // Log-transformed gamma
   
 }
 
@@ -59,7 +59,7 @@ transformed parameters {
 model {
   // Priors
    rho ~ uniform(0, 1);                      // Example prior for rho
-   log10_gamma ~ uniform(-15, -6); // Prior for log10_gamma
+   log10_gamma ~ normal(-7, 3); // Prior for log10_gamma
   
   // 
   // Likelihood

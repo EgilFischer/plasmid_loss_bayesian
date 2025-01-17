@@ -53,6 +53,11 @@ create_stan_data <- function(strain, donor, data_growth_rates, data_conjugation)
               filter(.data[[donor]] == paste0(strain, "-T")) %>%
               select(paste0("Growth rates ", donor)))[1]
   
+  #deal with unknown growth rates
+  if(length(unlist(psiR))==0) {
+    warning(paste(strain, "and" , donor, "combination does not exist in the growth rate data"));
+  psiR <- 1; psiT<- 1}
+  
   # Define data from conjugation experiment with specified donor and strain
   use_data <- data_conjugation %>%
     filter(Donor == donor & Strain_ID == strain);
@@ -146,12 +151,12 @@ data_conjugation[data_conjugation$Time == 0, ] <- data_conjugation %>%
 
 
 #create object for Stan #### 
-stan_data <- create_stan_data(strain = "MH1",donor = "1D", 
+stan_data <- create_stan_data(strain = "MH1",donor = "2D", 
                              data_growth_rates = data_growth_rates, 
                              data_conjugation = data_conjugation)
 
 #TO DO: to be changed after discussion with empiricist but psi does not fit with N so change
-stan_data$psiT<-2.7*stan_data$psiT/stan_data$psiR; 
+stan_data$psiR<-2.7*stan_data$psiR/stan_data$psiT; 
 stan_data$psiT<-2.7;
 
 #check data
@@ -159,47 +164,48 @@ check_stan_data(stan_data)
 
 # Stan model code (saved as a separate file, e.g., "model.stan")
 stan_file <- "./src/Stan/ODE_plasmid_v2.stan"
-
-# Compile the Stan model ~do not care about message : "hash mismatch so recompiling; make sure Stan code ends with a blank line"
-stan_model <- stan_model(file = stan_file)
-
-# Fit the model - currently it just simulates data as there is some bug in the estimation procedure.
-fit <- sampling(
-  stan_model,
-  data = stan_data,
-  iter = 1000, # Number of iterations
-  chains = 2, # Number of chains
-  warmup = 50, # Number of warmup iterations
-  thin = 1, # Thinning interval
-  init = function() {
-    list(
-      rho = runif(1, 0, 1),
-      log10_gamma = runif(1, -15, -5)
-    )
-  }, # force initial values of parameters
- # algorithm = "Fixed_param",
-  seed = 123 # Random seed for reproducibility
-)
-
-
+# 
+# # Compile the Stan model ~do not care about message : "hash mismatch so recompiling; make sure Stan code ends with a blank line"
+# stan_model <- stan_model(file = stan_file)
+# 
+# # Fit the model - currently it just simulates data as there is some bug in the estimation procedure.
+# rm(fit);fit <- sampling(
+#   stan_model,
+#   data = stan_data,
+#   iter = 20000, # Number of iterations
+#   chains = 1, # Number of chains
+#   warmup = 7500, # Number of warmup iterations
+#   thin = 1, # Thinning interval,
+#   algorithm = "NUTS",
+#   control = list(max_treedepth = 12),
+#   init = function() {
+#     list(
+#       rho = runif(1, 0, .1),
+#       log10_gamma = runif(1, -15, -3)
+#     )
+#   },
+#   
+#   # force initial values of parameters
+#  # algorithm = "Fixed_param",
+#   seed = 123 # Random seed for reproducibility
+# )
 
 
 # print output of simulated data for y = proportion and N is total population size
-print_sim_data(fit, c("y_pred[1]", "y_pred[2]", "y_pred[3]"))
-print_sim_data(fit, c("N_pred[1]", "N_pred[2]", "N_pred[3]"))
+#print_sim_data(fit, c("y_pred[1]", "y_pred[2]", "y_pred[3]"))
+#print_sim_data(fit, c("N_pred[1]", "N_pred[2]", "N_pred[3]"))
 # print all output
-print_sim_data(fit, fit@sim$fnames_oi)
+#print_sim_data(fit, fit@sim$fnames_oi)
 
 
 
 # model diagnostics
-stan_diag(fit)
 
-stan_trace(fit)
+stan_trace(fit, pars = list("rho","log10_gamma"))
 
-stan_hist(fit)
+stan_hist(fit, pars = list("rho","log10_gamma"))
 
-stan_ess(fit)
+stan_ess(fit, pars = list("rho","log10_gamma"))
 
 pairs(fit,pars = c("rho" , 
                    "log10_gamma", 
@@ -252,62 +258,234 @@ ggplot(df.N, aes(x = Time)) +
   )
 
 
-# In this section solve the ODE's without Stan ####
+#run Stan over multipe Strains and donor combinations ####
 
-# Define the coupled differential equations
-dp_dn_dt <- function(time, state, parameters) {
-  p <- state[1] # Current value of p
-  N <- state[2] # Current value of N
-  with(as.list(parameters), {
-    # ODEs
-    dp <- (psiT - psiR) * p * (1 - p) - rho * psiT * p + gamma * N * p * (1 - p)
-    dN <- psiR * p * N + psiT * (1 - p) * N
-    list(c(dp, dN))
-  })
+#function iterating over strain_donor combinations
+stan_fit_strain_donor <- function(strain_donor_combinations, #data frame containing combination of strain and donor name
+                                  data_conjugation, #data with conjugation experiment data
+                                  data_growth_rates, #data with growth rate experiment data
+                                  iter = 30000,
+                                  warmup = 15000
+){
+  #' @title Fit the ode-system for strain-donor combinations
+  #'
+  #' This function processes strain-donor combinations and related experimental data
+  #' (e.g., conjugation and growth rates) to fit a model or perform specific analyses.
+  #'
+  #' @param strain_donor_combinations Data frame. A table containing combinations of strain and donor names.
+  #' @param data_conjugation Data frame. Experimental data from conjugation experiments.
+  #' @param data_growth_rates Data frame. Experimental data from growth rate experiments.
+  #' @param iter Number of iterations Default 30 000
+  #' @param warmup Number of warmup Default 15 000 
+  #' @return Model or processed data. The output depends on the implementation of the function.
+  #' @examples
+  #' strain_donor_combinations <- data.frame(strain = c("strain1", "strain2"),
+  #'                                          donor = c("donor1", "donor2"))
+  #' data_conjugation <- data.frame(time = c(1, 2, 3), conjugation_rate = c(0.1, 0.2, 0.3))
+  #' data_growth_rates <- data.frame(strain = c("strain1", "strain2"), growth_rate = c(1.2, 1.5))
+  #' stan_fit_strain_donor(strain_donor_combinations, data_conjugation, data_growth_rates)
+  
+  #iterate over the combinations of strains and donors
+  output <- NULL;
+  for(i in c(1:dim(strain_donor_combinations)[1])){
+  strain_donor <- c(strain_donor_combinations[i,]);
+  print(strain_donor);
+  #create the stan_data 
+  stan_data <- create_stan_data(strain = unlist(strain_donor$Strain_ID),
+                                donor = unlist(strain_donor$Donor),
+                                data_growth_rates = data_growth_rates,
+                                data_conjugation = data_conjugation);
+  check_stan_data(stan_data)
+  #determine the growth rate in this data set
+  overall_psi <- coefficients(lm(logN~t, data = data.frame(logN = c(log(stan_data$N)), 
+                                          t = rep(stan_data$ts ,each = stan_data$R))))["t"]
+  #adjust to ratio psiT to psiR 
+  alpha <- with(stan_data, psiT/psiR)
+  stan_data$psiR <-with(stan_data,{ overall_psi/((1-p0) *alpha+p0) })
+  stan_data$psiT <- alpha*stan_data$psiR
+  
+  #run the fitting procedure
+  {rm(fit);fit <- sampling(
+    stan_model,
+    data = stan_data,
+    iter = iter, # Number of iterations
+    chains = 1, # Number of chains
+    warmup = warmup, # Number of warmup iterations
+    thin = 1, # Thinning interval,
+    algorithm = "NUTS",
+    control = list(max_treedepth = 12),
+    init = function() {
+      list(
+        rho = runif(1, 0, .1),
+        log10_gamma = runif(1, -15, -3)
+      )
+    },
+    
+    # force initial values of parameters
+    # algorithm = "Fixed_param",
+    seed = 123 # Random seed for reproducibility
+  )}
+  
+  #if fit contains values
+  if(is.null(fit)) stop()
+  #extract relevant data
+  output <- rbind(output,data.frame(strain = strain_donor[1],
+                       donor = strain_donor[2],
+                       rho = rstan::extract(fit,"rho"),
+                       log10_gamma = rstan::extract(fit,"log10_gamma"),
+                       prop_predict_t0 = rstan::extract(fit, "y_pred")$y_pred[,1],
+                       prop_predict_t1 = rstan::extract(fit, "y_pred")$y_pred[,2],
+                       prop_predict_t2 = rstan::extract(fit, "y_pred")$y_pred[,3]))
+  
+  }
+  return(output)
 }
 
-# Time points for the simulation
-time_points <- seq(0, 2, length.out = 100) # Example time points
 
-# Parameters
-parameters <- list(
-  psiT = unlist(stan_data$psiT), # Example psiT
-  psiR = unlist(stan_data$psiR), # Example psiR
-  rho = summary(fit)$summary["rho", 1], # Example rho
-  gamma = summary(fit)$summary["gamma", 1] # Example gamma
+# All combinations of donor and strain ------------------------------------
+#get the donor strain combinations
+strain_donor_combinations <- unique(data_conjugation[,c("Strain_ID","Donor")])
+
+#remove a few with unclear data 
+strain_donor_combinations <- strain_donor_combinations%>%filter(!(Strain_ID %in% c("4H","5H","8H","4B3")))
+
+
+
+stan_fit_strain_donor_output <- stan_fit_strain_donor(strain_donor_combinations, #data frame containing combination of strain and donor name
+                                  data_conjugation, #data with conjugation experiment data
+                                  data_growth_rates, #data with growth rate experiment data
+                                  iter = 5000,
+                                  warmup = 1000
 )
 
-# Initial conditions
-initial_state <- c(
-  p = stan_data$p0,  # Initial value of p
-  N = stan_data$N0  # Initial value of N
-)
+saveRDS(stan_fit_strain_donor_output, file = paste0("./results/",gsub("-","",Sys.Date()),"_stan_fit_strain_donor_output.RDS"))
 
-# Solve the coupled ODEs
-ode_solution <- ode(
-  y = initial_state,
-  times = time_points,
-  func = dp_dn_dt,
-  parms = parameters
-)
+stan_fit_strain_donor_output <- readRDS(file = paste0("./results/20250116_stan_fit_strain_donor_output.RDS"))
 
-# Extract the results
-ode_results <- as.data.frame(ode_solution)
+prior_distribution <- data.frame(rho = runif(10^6,0,1 ),
+                                 log10_gamma =  rnorm(10^6,-7,3 ))
 
-ggplot() +
-  geom_point(aes(x = df$Time, y = df$Observed), color = "blue", size = 2) +
-  geom_line(aes(x = ode_results$time, y = ode_results$p), color = "red", size = 1) +
-  theme_minimal() +
-  labs(
-    title = "Observed vs Predicted",
-    x = "Time",
-    y = "Proportion"
-  )
-ggplot() +
-  geom_line(aes(x = ode_results$time, y = ode_results$N), color = "red", size = 1) +
-  theme_minimal() +
-  labs(
-    title = "Observed vs Predicted",
-    x = "Time",
-    y = "Proportion"
-  )
+ggplot(stan_fit_strain_donor_output)+
+   geom_histogram(aes(x = rho, 
+                      y = after_stat(density), 
+                      fill = paste(Strain_ID,Donor)))+
+  geom_density(data = prior_distribution,
+                aes(x = rho,y = after_stat(density)),
+                colour = "red", linewidth = 0.5)+
+  facet_grid(Strain_ID~Donor)+
+  ggtitle("rho")
+                
+                
+
+ggplot(stan_fit_strain_donor_output)+
+  geom_histogram(aes(x = log10_gamma, 
+                     y = after_stat(density), 
+                     fill = paste(Strain_ID,Donor)))+
+  geom_density(data = prior_distribution,
+                aes(x = log10_gamma,y = after_stat(density)),
+                colour = "red", linewidth = .5)+
+  facet_grid(Strain_ID~Donor)+
+  ggtitle("log10_gamma")
+
+
+ggplot(stan_fit_strain_donor_output)+
+  geom_bin2d(aes(x = log10_gamma, 
+                     y = rho), bins = 25)+
+  scale_fill_continuous(type = "viridis")+
+  facet_grid(Strain_ID~Donor)+
+  ggtitle("log10_gamma vs rho")
+
+#organize data for comparison
+comp_data <- data_conjugation%>%mutate(p_obs = CFX/Nax)
+
+#calculate mean square error ####
+mse_fit <- function(comp_data, stan_fit_strain_donor_output){
+  #number of entries
+  n <- length(comp_data$Replicate);
+  #initialize output 
+  mse <- data.frame(mse = rep(Inf, n))
+  #iterate over the comparison data
+  for(i in c(1:n))
+  {
+      strain <- comp_data$Strain_ID[i];
+      donor <- comp_data$Donor[i];
+      time <- comp_data$Time[i];
+      stan_fit<-stan_fit_strain_donor_output %>% filter(Strain_ID == strain & Donor == donor) 
+      if(length(stan_fit)<1)
+        mse$mse[i]<- Inf
+      else
+      {
+         mse$mse[i] <- sum((stan_fit[,time + 5] -    comp_data$p_obs[i])^2 )
+      }
+      
+  }
+  return(cbind(comp_data, mse))
+  
+}
+
+comp_data_mse = mse_fit(comp_data, stan_fit_strain_donor_output )
+#combine for all time points
+comp_data_mse_aggregate <- comp_data_mse%>%reframe(.by = c(Strain_ID,Replicate,Donor, Origin),
+                                                   sum_mse = sum(mse))
+
+ggplot(comp_data_mse_aggregate)+geom_point(aes(x = Strain_ID, y = sum_mse, colour = as.factor(Replicate)))+facet_grid(Donor~.)
+
+ggplot(stan_fit_strain_donor_output)+
+  geom_point(aes(x = 0, y = prop_predict_t0), alpha = 0.01)+
+  geom_point(aes(x = 1, y = prop_predict_t1, alpha = 0.01))+
+  geom_point(aes(x = 2, y = prop_predict_t2), alpha = 0.01)+
+  geom_path(aes(x = Time, y = p_obs, group = Replicate), data =comp_data)+
+  facet_grid(Strain_ID~Donor,scales = "free_y")
+  
+
+
+# 
+# # In this section solve the ODE's without Stan ####
+# source("./src/R/ODE_model.R")
+# 
+# 
+# # Time points for the simulation
+# time_points <- seq(0, 2, length.out = 100) # Example time points
+# 
+# # Parameters
+# parameters <- list(
+#   psiT = unlist(stan_data$psiT), # Example psiT
+#   psiR = unlist(stan_data$psiR), # Example psiR
+#   rho = summary(fit)$summary["rho", 1], # Example rho
+#   gamma = summary(fit)$summary["gamma", 1] # Example gamma
+# )
+# 
+# # Initial conditions
+# initial_state <- c(
+#   p = stan_data$p0,  # Initial value of p
+#   N = stan_data$N0  # Initial value of N
+# )
+# 
+# # Solve the coupled ODEs
+# ode_solution <- ode(
+#   y = initial_state,
+#   times = time_points,
+#   func = dp_dn_dt,
+#   parms = parameters
+# )
+# 
+# # Extract the results
+# ode_results <- as.data.frame(ode_solution)
+# 
+# ggplot() +
+#   geom_point(aes(x = df$Time, y = df$Observed), color = "blue", size = 2) +
+#   geom_line(aes(x = ode_results$time, y = ode_results$p), color = "red", size = 1) +
+#   theme_minimal() +
+#   labs(
+#     title = "Observed vs Predicted",
+#     x = "Time",
+#     y = "Proportion"
+#   )
+# ggplot() +
+#   geom_line(aes(x = ode_results$time, y = ode_results$N), color = "red", size = 1) +
+#   theme_minimal() +
+#   labs(
+#     title = "Observed vs Predicted",
+#     x = "Time",
+#     y = "Proportion"
+#   )
